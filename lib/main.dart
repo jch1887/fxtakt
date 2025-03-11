@@ -29,9 +29,15 @@ class _FXTaktAppState extends State<FXTaktApp> {
 
   void _fetchMidiDevices() async {
     List<MidiDevice>? devices = await _midiCommand.devices;
-    setState(() {
-      _devices = devices ?? [];
-    });
+    if (devices != null && devices.isNotEmpty) {
+      setState(() {
+        _devices = devices;
+        // Ensure the selected device is still valid
+        if (!_devices.contains(_selectedDevice)) {
+          _selectedDevice = null;
+        }
+      });
+    }
   }
 
   void _connectToDevice(MidiDevice device) {
@@ -43,16 +49,12 @@ class _FXTaktAppState extends State<FXTaktApp> {
     setState(() {
       _selectedDevice = device;
     });
-    Future.delayed(Duration(milliseconds: 100), () {
-      setState(() {});
-    });
   }
 
   void _sendMidiCC(int control, int value) {
     int midiChannel = 8; // Channel 9 in MIDI (0-indexed)
     if (_selectedDevice != null) {
-      String deviceName = _selectedDevice!.name;
-      print("Sending MIDI CC: Control = $control, Value = $value on Channel 9 to $deviceName");
+      print("Sending MIDI CC: Control = $control, Value = $value on Channel 9 to \${_selectedDevice!.name}");
       _midiCommand.sendData(Uint8List.fromList([0xB0 + midiChannel, control, value]));
     } else {
       print("❌ ERROR: No MIDI device selected!");
@@ -63,8 +65,8 @@ class _FXTaktAppState extends State<FXTaktApp> {
     setState(() {
       _freezeActive = !_freezeActive;
       if (_freezeActive) {
-        _sendMidiCC(84, 127); // Delay Send
-        _sendMidiCC(85, 127); // Reverb Send
+        _sendMidiCC(84, 127);
+        _sendMidiCC(85, 127);
       } else {
         _sendMidiCC(84, 0);
         _sendMidiCC(85, 0);
@@ -111,14 +113,8 @@ class _FXTaktAppState extends State<FXTaktApp> {
         appBar: AppBar(
           title: Column(
             children: [
-              Text(
-                'FXTAKT',
-                style: TextStyle(fontFamily: 'DINCondensed', color: Colors.white, fontSize: 24),
-              ),
-              Text(
-                'Digitakt Performance Controller',
-                style: TextStyle(fontFamily: 'DINCondensed', color: Colors.white, fontSize: 14),
-              ),
+              Text('FXTAKT', style: TextStyle(fontFamily: 'DINCondensed', color: Colors.white, fontSize: 24)),
+              Text('Digitakt Performance Controller', style: TextStyle(fontFamily: 'DINCondensed', color: Colors.white, fontSize: 14)),
             ],
           ),
           backgroundColor: Colors.black,
@@ -130,18 +126,14 @@ class _FXTaktAppState extends State<FXTaktApp> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[800],
-                  shadowColor: Colors.orangeAccent,
-                  elevation: 10,
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[800], shadowColor: Colors.orangeAccent, elevation: 10),
                 onPressed: _fetchMidiDevices,
                 child: Text("REFRESH MIDI DEVICES", style: TextStyle(color: Colors.white, fontFamily: 'DINCondensed')),
               ),
               DropdownButton<MidiDevice>(
                 hint: Text("SELECT MIDI DEVICE", style: TextStyle(color: Colors.white, fontFamily: 'DINCondensed', fontSize: 16)),
                 dropdownColor: Colors.black,
-                value: _selectedDevice,
+                value: _devices.contains(_selectedDevice) ? _selectedDevice : null,
                 items: _devices.map((device) {
                   return DropdownMenuItem(
                     value: device,
@@ -150,12 +142,15 @@ class _FXTaktAppState extends State<FXTaktApp> {
                 }).toList(),
                 onChanged: (device) {
                   if (device != null) {
+                    setState(() {
+                      _selectedDevice = device;
+                    });
                     _connectToDevice(device);
                   }
                 },
               ),
               Text(
-                _selectedDevice != null ? "CONNECTED: \${_selectedDevice!.name.split(' ').first}" : "NO DEVICE CONNECTED",
+                _selectedDevice != null ? "CONNECTED: ${_selectedDevice!.name}" : "NO DEVICE CONNECTED",
                 style: TextStyle(fontSize: 14, color: Colors.white, fontFamily: 'DINCondensed'),
               ),
               Text('CROSSFADE', style: TextStyle(fontSize: 16, color: Colors.white, fontFamily: 'DINCondensed')),
@@ -171,12 +166,12 @@ class _FXTaktAppState extends State<FXTaktApp> {
                   ElevatedButton(
                     onPressed: _toggleBeatRepeat,
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[800]),
-                    child: Text("BEAT REPEAT", style: TextStyle(color: Colors.white)),
+                    child: Text("BEAT REPEAT", style: TextStyle(color: Colors.white, fontFamily: 'DINCondensed')),
                   ),
                   ElevatedButton(
                     onPressed: _toggleFreezeMode,
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[800]),
-                    child: Text("FREEZE MODE", style: TextStyle(color: Colors.white)),
+                    child: Text("FREEZE MODE", style: TextStyle(color: Colors.white, fontFamily: 'DINCondensed')),
                   ),
                 ],
               ),
